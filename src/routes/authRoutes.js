@@ -1,4 +1,4 @@
-// routes/authRoutes.js
+// src/routes/authRoutes.js
 import express from "express";
 import {
   register,
@@ -6,19 +6,27 @@ import {
   updateUserById,
   deleteUserById,
   updateUserRole,
+  verifyUser,
 } from "../controllers/authController.js";
 import {
   authenticateToken,
   authorizeRoles,
 } from "../middleware/authMiddleware.js";
 
-// Importa los middlewares de validación
+// Importar middlewares de validación
 import { validateRegister } from "../middleware/validateRegister.js";
 import { validateLogin } from "../middleware/validateLogin.js";
 import { validateUpdateUser } from "../middleware/validateUpdateUser.js";
 import { validationError } from "../middleware/validationError.js";
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Endpoints de autenticación y gestión de usuarios
+ */
 
 /**
  * @swagger
@@ -56,16 +64,11 @@ const router = express.Router();
  *                 enum: [cliente, administrador, repartidor]
  *     responses:
  *       201:
- *         description: Usuario registrado exitosamente.
+ *         description: Usuario registrado exitosamente. Se envió un correo de verificación.
  *       400:
  *         description: Usuario o correo ya en uso / Rol inválido.
  */
-router.post(
-  "/register",
-  validateRegister,
-  validationError, 
-  register 
-);
+router.post("/register", validateRegister, validationError, register);
 
 /**
  * @swagger
@@ -91,13 +94,32 @@ router.post(
  *         description: Inicio de sesión exitoso.
  *       400:
  *         description: Credenciales incorrectas.
+ *       403:
+ *         description: Cuenta no verificada.
  */
-router.post(
-  "/login",
-  validateLogin,
-  validationError,
-  login
-);
+router.post("/login", validateLogin, validationError, login);
+
+/**
+ * @swagger
+ * /auth/verify:
+ *   get:
+ *     summary: Verifica la cuenta del usuario.
+ *     description: Valida el token de verificación enviado por correo y activa la cuenta del usuario.
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token de verificación enviado al correo del usuario.
+ *     responses:
+ *       200:
+ *         description: Correo verificado exitosamente. La cuenta queda activada.
+ *       400:
+ *         description: Token inválido o expirado.
+ */
+router.get("/verify", verifyUser);
 
 /**
  * @swagger
@@ -141,8 +163,6 @@ router.post(
  *         description: Acceso denegado.
  *       404:
  *         description: Usuario no encontrado.
- *       500:
- *         description: Error en el servidor.
  */
 router.put(
   "/user/:userId",
@@ -176,8 +196,6 @@ router.put(
  *         description: Acceso denegado.
  *       404:
  *         description: Usuario no encontrado.
- *       500:
- *         description: Error en el servidor.
  */
 router.delete("/user/:userId", authenticateToken, deleteUserById);
 
@@ -214,8 +232,6 @@ router.delete("/user/:userId", authenticateToken, deleteUserById);
  *         description: Rol inválido.
  *       404:
  *         description: Usuario no encontrado.
- *       500:
- *         description: Error en el servidor.
  */
 router.put(
   "/role/:userId",

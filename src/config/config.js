@@ -15,5 +15,12 @@ export const connectDB = async () => {
 
 export const config = {
   port: process.env.PORT || 5000,
-  jwtSecret: process.env.JWT_SECRET,
+  jwtSecret: process.env.JWT_SECRET || "your_jwt_secret",
+  email: {
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: process.env.EMAIL_PORT ? parseInt(process.env.EMAIL_PORT) : 587,
+    user: process.env.EMAIL_USER || "example@gmail.com", // Cambia esto por tu correo
+    pass: process.env.EMAIL_PASS || "clavesecreta", // Cambia esto por tu contraseña o app password
+    fromName: process.env.EMAIL_FROM_NAME || "Autenticacion",
+  },
 };

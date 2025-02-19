@@ -6,6 +6,7 @@ import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import { swaggerUi, specs } from "./config/swagger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import emailRoutes from "./routes/emailRoutes.js"; // Importa las rutas de email
 
 const app = express();
 
@@ -21,6 +22,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 // Rutas de la API
 app.use("/auth", authRoutes);
 app.use("/products", productRoutes);
+app.use("/email", emailRoutes); 
+
+// Middleware de manejo de errores
 app.use(errorHandler);
 
 app.listen(5000, () => {

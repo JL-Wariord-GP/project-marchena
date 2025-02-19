@@ -1,3 +1,4 @@
+// src/models/User.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
@@ -13,6 +14,7 @@ const userSchema = new mongoose.Schema({
     enum: ["cliente", "administrador", "repartidor"],
     default: "cliente",
   },
+  verified: { type: Boolean, default: false },
 });
 
 export const User = mongoose.model("User", userSchema);

@@ -1,15 +1,18 @@
-// controllers/authController.js
+// src/controllers/authController.js
 import { User } from "../models/User.js";
 import {
   hashPassword,
   comparePassword,
   generateToken,
 } from "../services/authService.js";
+import { sendEmail } from "../services/emailService.js";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config.js";
 
 /**
  * Registra un nuevo usuario.
+ * Además de la lógica existente (incluyendo la validación del rol),
+ * se envía un correo de verificación con un enlace para activar la cuenta.
  */
 export const register = async (req, res) => {
   try {
@@ -35,15 +38,13 @@ export const register = async (req, res) => {
     // Por defecto, el rol será "cliente"
     let newRole = "cliente";
 
-    // Si se solicita un rol distinto a "cliente"
+    // Lógica para asignar un rol distinto a "cliente"
     if (rol && rol !== "cliente") {
       if (rol === "administrador") {
-        // Permitir crear el primer administrador si no existe ninguno
         const adminExists = await User.findOne({ rol: "administrador" });
         if (!adminExists) {
           newRole = "administrador";
         } else {
-          // Si ya existe, se requiere token de un administrador
           const token = req.header("Authorization")?.split(" ")[1];
           if (!token) {
             return res.status(403).json({
@@ -91,7 +92,7 @@ export const register = async (req, res) => {
     // Hashear la contraseña
     const hashedPassword = await hashPassword(password);
 
-    // Crear el usuario
+    // Crear el usuario con verified por defecto en false
     const newUser = new User({
       usuario,
       nombre,
@@ -101,14 +102,80 @@ export const register = async (req, res) => {
       telefono,
       password: hashedPassword,
       rol: newRole,
+      verified: false,
     });
 
     await newUser.save();
-    res.status(201).json({ message: "Usuario registrado exitosamente" });
+
+    // Generar token de verificación (válido por 24 horas)
+    const verificationToken = jwt.sign({ id: newUser._id }, config.jwtSecret, {
+      expiresIn: "24h",
+    });
+    // Construir el enlace de verificación usando el protocolo y host de la petición
+    const verificationLink = `${req.protocol}://${req.get(
+      "host"
+    )}/auth/verify?token=${verificationToken}`;
+
+    // Preparar el correo de verificación
+    const emailOptions = {
+      to: correo,
+      subject: "Verificación de cuenta - E-commerce",
+      html: `
+        <p>Estimado/a ${nombre},</p>
+        <p>Gracias por registrarse en nuestro sistema. Para completar su registro y activar su cuenta, por favor haga clic en el siguiente enlace:</p>
+        <p><a href="${verificationLink}">Verificar mi cuenta</a></p>
+        <p>Si usted no ha solicitado este registro, por favor ignore este mensaje.</p>
+        <p>Atentamente,<br/>El equipo de E-commerce</p>
+      `,
+    };
+
+    const emailSent = await sendEmail(emailOptions);
+    if (emailSent) {
+      res.status(201).json({
+        message:
+          "Usuario registrado exitosamente. Por favor, revise su bandeja de entrada para validar su cuenta.",
+      });
+    } else {
+      res.status(500).json({
+        message:
+          "Usuario registrado, pero ocurrió un error al enviar el correo de verificación.",
+      });
+    }
   } catch (error) {
     res
       .status(500)
       .json({ message: "Error en el servidor", error: error.message });
+  }
+};
+
+/**
+ * Verifica la cuenta del usuario a partir del token enviado por correo.
+ */
+export const verifyUser = async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res
+      .status(400)
+      .json({ message: "Token de verificación no proporcionado." });
+  }
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret);
+    const userId = decoded.id;
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { verified: true },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado." });
+    }
+    res.status(200).json({
+      message: "Correo verificado exitosamente. Su cuenta ahora está activada.",
+    });
+  } catch (error) {
+    res
+      .status(400)
+      .json({ message: "Token de verificación inválido o expirado." });
   }
 };
 
@@ -121,6 +188,13 @@ export const login = async (req, res) => {
     const user = await User.findOne({ correo });
     if (!user || !(await comparePassword(password, user.password))) {
       return res.status(400).json({ message: "Credenciales incorrectas" });
+    }
+    // Verificar que la cuenta esté activada
+    if (!user.verified) {
+      return res.status(403).json({
+        message:
+          "Cuenta no verificada. Por favor, revise su correo y verifique su cuenta para poder usar nuestros servicios.",
+      });
     }
     const token = generateToken(user);
     res.json({ token });
