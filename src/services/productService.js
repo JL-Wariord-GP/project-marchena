@@ -1,3 +1,4 @@
+// services/productService.js
 import apiClient from "./apiService.js";
 
 export const getProducts = async () => {
@@ -15,15 +16,51 @@ export const getProducts = async () => {
 
 export const createProduct = async (productData) => {
   try {
-    console.log("📤 Enviando datos a FastAPI:", productData); // Log para depuración
     const response = await apiClient.post("/products", productData);
-    console.log("✅ Producto creado:", response.data); // Log de éxito
     return response.data;
   } catch (error) {
     console.error(
-      "❌ Error creando producto:",
+      "Error creando producto:",
       error.response?.data || error.message
     );
+    throw error;
+  }
+};
+
+export const updateProduct = async (id, productData) => {
+  try {
+    const response = await apiClient.put(`/products/${id}`, productData);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error actualizando producto:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const deleteProduct = async (id) => {
+  try {
+    const response = await apiClient.delete(`/products/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error eliminando producto:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const purchaseProduct = async (id, quantity) => {
+  try {
+    const response = await apiClient.post(`/products/${id}/purchase`, {
+      quantity,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error en la compra:", error.response?.data || error.message);
     throw error;
   }
 };
